@@ -16,7 +16,7 @@ TDS (Technical Design Surgery) today sits with EA, with known **capacity gaps**.
 - The Group is expanding beyond Azure-only to a **multi-cloud strategy** (AWS and GCP coming soon), so TDS coverage needs to extend beyond Azure.
 - CADRB's current format — a 1-week pre-read window and a 1-hour formal session — is too short for detailed review. TDS is meant to absorb that detail work upstream, so CADRB only handles items that genuinely need its decision authority.
 
-Because participation stays voluntary and the team is capacity-constrained (**currently 4 staff, plus 2 allocated to other teams**), the highest-leverage use of AI is making self-review fast enough that PortCos choose to use it, and light enough that a small TDS Committee can sustain it. This document defines requirements for an AI-assisted tool where a PortCo submits an architecture diagram or design document and receives automated, checklist-based recommendations, with TDS Committee review reserved for genuinely ambiguous or high-risk cases.
+Because participation stays voluntary and capacity is a known constraint (**CCoE Migration Enablement, the group joining TDS to add capacity, brings 4 staff plus 2 allocated to other teams** — this is Migration Enablement's own staffing, not the total across all four TDS Committee groups, which also draw on EA, Cyber, and Data capacity separately), the highest-leverage use of AI is making self-review fast enough that PortCos choose to use it, and light enough that a small TDS Committee can sustain it. This document defines requirements for an AI-assisted tool where a PortCo submits an architecture diagram or design document and receives automated, checklist-based recommendations, with TDS Committee review reserved for genuinely ambiguous or high-risk cases.
 
 In addition to reviewing a design a PortCo has already produced, the tool also supports PortCos earlier in their process — helping them start from a TDS Committee-approved reference design template rather than from a blank page (see §4.10). This is a **design-assist** capability, not design generation: the AI selects and recommends from a pre-approved template library: it does not author new architectures, and it does not produce deployable infrastructure-as-code (IaC) — that remains the responsibility of a separate team that owns IaC modules.
 
@@ -32,7 +32,7 @@ In addition to reviewing a design a PortCo has already produced, the tool also s
 | G4 | Preserve TDS Committee judgment for ambiguous, novel, or high-risk designs — AI drafts, a human signs off. |
 | G5 | Keep the checklist and underlying Group standards as the single source of truth; avoid AI inventing or misquoting policy. |
 | G6 | Support designs across all in-scope CSPs — Azure today, extending to AWS and GCP as the Group's multi-cloud strategy rolls out. |
-| G7 | Stretch a capacity-constrained TDS Committee (4 staff, +2 shared) further, without requiring every PortCo interaction to be a live session. |
+| G7 | Stretch a capacity-constrained TDS Committee further — including CCoE Migration Enablement's own contribution of 4 staff (+2 shared) — without requiring every PortCo interaction to be a live session. |
 | G8 | Let a PortCo describe their requirement in plain language and get pointed to the right TDS Committee-approved reference design template, so designs start from a compliant pattern instead of a blank page. |
 
 ### Non-Goals
@@ -199,7 +199,7 @@ This is a second, earlier-stage use case that complements the review flow in §4
 - Initial CSP coverage is Azure; AWS and GCP checklist coverage is phased in alongside the Group's multi-cloud rollout.
 - Initial scope is cloud/infrastructure designs only, not application-layer review.
 - CADRB's intake format/process is assumed to accept a structured document in v1; deeper API integration is a later phase.
-- Current TDS Committee capacity is 4 staff (plus 2 shared with other teams) — this materially shapes how much can go to escalation vs. self-serve.
+- CCoE Migration Enablement — the group joining TDS to add capacity — brings 4 staff (plus 2 shared with other teams); this is Migration Enablement's own staffing figure, not the total headcount across the joint TDS Committee (EA, Cyber, and Data also contribute capacity, not separately quantified here). This figure materially shapes how much can go to escalation vs. self-serve.
 - The reference design template library (§4.10) is a **TDS Committee-owned artifact**, authored (or co-developed with the AI tool team for structure/tooling) separately from the AI pipeline — the same relationship the checklist already has to the system. Template authoring is expected to be a larger content effort than the checklist, since templates need actual diagrams/patterns, not just policy references.
 - Reference design templates are diagram/pattern only. Deployable infrastructure-as-code (IaC) is explicitly out of scope and owned by a separate IaC module team; this tool does not generate, own, or maintain IaC.
 
@@ -207,7 +207,7 @@ This is a second, earlier-stage use case that complements the review flow in §4
 
 ## 9. Open Questions
 
-- **Capacity**: current team is 4 staff (+2 shared). To be re-evaluated once the checklist is finalized and a pilot project has run — how much load can this tool realistically take off the team, and does that change the answer?
+- **Capacity**: CCoE Migration Enablement brings 4 staff (+2 shared) to the joint TDS Committee; EA, Cyber, and Data's respective contributions aren't separately quantified here. To be re-evaluated once the checklist is finalized and a pilot project has run — how much load can this tool realistically take off the team, and does that change the answer?
 - **Sign-off authority**: the output artifact will use email sign-off, but *who* holds sign-off authority (which role, per domain) is still undecided.
 - **Multi-cloud timing**: what is the actual rollout sequence for AWS/GCP approval, and does the checklist/AI tool need AWS/GCP coverage ready before or after Group approval lands?
 - **Forum-as-a-service**: for PortCos without an owned forum, what does "TDS as their forum" look like operationally — recurring session, on-demand, or purely tool-driven?
