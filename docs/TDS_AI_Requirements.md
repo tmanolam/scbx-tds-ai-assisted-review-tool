@@ -51,7 +51,7 @@ In addition to reviewing a design a PortCo has already produced, the tool also s
 | Persona | Need |
 |---|---|
 | **PortCo Solution Owner / Architect** | Fast, self-serve feedback on a design without waiting for a session; plain-language guidance, not policy documents. Earlier in the process, a starting point that's already known to be compliant, instead of designing from zero. |
-| **TDS Committee** (CCoE Migration Enablement, EA, Cyber, Data) | A consistent pipeline that stretches limited capacity; a manageable queue focused on genuinely hard cases; a shared, joint accountability model (no single owner); ownership of a template library alongside the checklist. |
+| **TDS Committee** (CCoE Migration Enablement, EA, Cyber, Data) | A consistent pipeline that stretches limited capacity; a manageable queue focused on genuinely hard cases; a shared, joint accountability model (no single owner); ownership of a template library alongside the checklist; a simple, authorized way to edit the checklist/templates post-launch without a separate tool. |
 | **CADRB** | A consistent output artifact — findings, conditions, sign-off — for every solution reaching them, on any CSP, so its short session time goes to decisions rather than discovery. |
 | **PortCo-owned forum** (AWG, Infra Day at SCB Bank; ARC at INVX; DAC at CardX; etc.) | A committee that joins their existing process rather than asking them to run a parallel one. |
 | **PortCo without an owned forum** | TDS offered as a forum-as-a-service, so they aren't left without any design-review venue. |
@@ -141,6 +141,18 @@ This is a second, earlier-stage use case that complements the review flow in §4
 - **FR-38**: The system must not generate or export infrastructure-as-code (IaC) from a selected template. If a PortCo needs deployable IaC, the system should point them to the separate IaC module team/catalog rather than attempting to produce it.
 - **FR-39**: The template library must be maintained independently of the AI system (versioned, owned by the TDS Committee, optionally co-developed with the AI tool team for structure/tooling), so adding or retiring a template doesn't require a model change.
 
+### 4.11 Checklist & Template Maintenance (Post-Launch)
+
+The checklist and template library are not static — Group standards evolve, new CSPs get approved, and template patterns need updates. This section defines how the TDS Committee edits this content after the tool has launched, without a separate maintenance tool and without disrupting reviews already in progress.
+
+- **FR-40**: Only authorized TDS Committee members may add, modify, or retire a checklist item or reference design template. No separate maintenance tool is required — edits are made directly on the versioned checklist/template corpus (the same documents the TDS Committee already owns per FR-11/FR-39).
+- **FR-41**: Every edit to the checklist or template corpus must be logged with who made the change, what changed, and when — sufficient for an audit trail, not a full approval-workflow system.
+- **FR-42**: Any edit to the checklist or template corpus must automatically trigger re-indexing into the retrieval store — no manual re-indexing step required.
+- **FR-43**: A review already in progress when the checklist or template corpus changes must continue and complete against the version it started with (see FR-27), not be interrupted or silently switched to the new version mid-review.
+- **FR-44**: Every completed output artifact must state which checklist/template version it was evaluated against, including cases where a newer version exists by the time the review completes (extends FR-27 to explicitly cover this timing case) — so it reads clearly as "reviewed based on checklist/template version N," not silently implying it reflects the current version.
+- **FR-45**: Already-issued findings and output artifacts must never be retroactively altered when the checklist or template changes later. Each finding's recorded checklist/template version (FR-27) is what makes this safe — a later policy change does not need to touch, and must not touch, historical records.
+- **FR-46**: When a checklist item changes, the system must flag any reference design template that was validated against the affected item as needing re-validation, so it doesn't silently drift out of sync with the checklist. Re-validation itself is a TDS Committee judgment call, not something the system decides automatically — the system's job is to surface the flag, not resolve it.
+
 ---
 
 ## 5. Non-Functional Requirements
@@ -173,6 +185,10 @@ This is a second, earlier-stage use case that complements the review flow in §4
 10. *As a PortCo architect*, I want to know clearly which parts of a suggested template are already compliant and which parts are still mine to decide, so I don't assume more is "done" than actually is.
 11. *As the TDS Committee*, I want to own and version a template library the same way we own the checklist, so template quality stays under our control rather than the AI's.
 12. *As the IaC module team*, I want a clean handoff — once a PortCo has a chosen, customized design, deployable IaC is our concern, not something the design tool tries to generate.
+13. *As an authorized TDS Committee member*, I want to edit the checklist or a template directly, with the change logged, without needing a separate maintenance tool.
+14. *As a PortCo mid-review when the checklist changes*, I want my review to finish against the version it started with, so the ground doesn't shift under me partway through.
+15. *As the TDS Committee*, I want past findings to stay exactly as issued even after a policy update, since they're already tied to the checklist version used at the time.
+16. *As the TDS Committee*, I want to be alerted when a checklist change makes a template potentially stale, so re-validation doesn't get missed.
 
 ---
 
@@ -188,6 +204,8 @@ This is a second, earlier-stage use case that complements the review flow in §4
 - % of new projects that start from a recommended reference design template.
 - % of template-started designs that pass review with fewer gaps than designs started from scratch (signal that templates are actually reducing rework).
 - Number of template match recommendations overturned or rejected by PortCos/reviewers (signal for matching accuracy and template coverage gaps).
+- Time between a checklist edit and the corresponding re-index completing (signal that content updates are actually flowing through, not just logged).
+- Number of templates flagged for re-validation after a checklist change, and how long they remain unresolved (signal for whether checklist/template sync is being kept up with).
 
 ---
 
@@ -202,6 +220,7 @@ This is a second, earlier-stage use case that complements the review flow in §4
 - CCoE Migration Enablement — the group joining TDS to add capacity — brings 4 staff (plus 2 shared with other teams); this is Migration Enablement's own staffing figure, not the total headcount across the joint TDS Committee (EA, Cyber, and Data also contribute capacity, not separately quantified here). This figure materially shapes how much can go to escalation vs. self-serve.
 - The reference design template library (§4.10) is a **TDS Committee-owned artifact**, authored (or co-developed with the AI tool team for structure/tooling) separately from the AI pipeline — the same relationship the checklist already has to the system. Template authoring is expected to be a larger content effort than the checklist, since templates need actual diagrams/patterns, not just policy references.
 - Reference design templates are diagram/pattern only. Deployable infrastructure-as-code (IaC) is explicitly out of scope and owned by a separate IaC module team; this tool does not generate, own, or maintain IaC.
+- Checklist and template maintenance (§4.11) deliberately does not introduce a separate maintenance tool — edits happen directly on the existing versioned corpus, with authorization, audit logging, and automated re-indexing as the only additional mechanics. In-flight reviews and already-issued findings are unaffected by later edits, by design (FR-43, FR-45); only forward-looking re-validation of affected templates (FR-46) is required after a checklist change.
 
 ---
 
@@ -216,3 +235,5 @@ This is a second, earlier-stage use case that complements the review flow in §4
 - **Template granularity**: how granular should templates be (e.g. a handful of broad patterns vs. many narrow ones)? Too broad risks weak matches; too narrow risks an unmaintainable library for a 4-person team.
 - **Template ownership/authoring process**: what does "TDS Committee co-develops templates with the AI tool team" mean in practice — does the AI tool team provide structure/format only, or also help draft candidate templates for TDS Committee review and sign-off?
 - **Template vs. review overlap**: should a template-started, lightly-customized design get an abbreviated review path (since most of it is pre-approved), or should it always go through the full checklist review in §4.1–4.9 to catch customization-introduced gaps?
+- **Maintenance authorization**: which specific roles within the TDS Committee (all members, or a smaller subset) are authorized to edit the checklist/template corpus (FR-40)? Does authority differ between checklist edits and template edits?
+- **Re-validation SLA**: once a template is flagged for re-validation (FR-46), is there an expected turnaround, or does it stay flagged indefinitely until someone picks it up? Given the small team, an unbounded backlog of flagged templates is a realistic risk.
