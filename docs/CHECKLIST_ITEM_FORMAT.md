@@ -1,6 +1,6 @@
 # Checklist Item Format
 
-Defines the plain-text format TDS Committee members author checklist items in. One file per item, committed to `checklist/<domain>/<ID>.md`. Kiro's generation pipeline (see `docs/CORPUS_BUILD_PIPELINE.md`) parses these into the indexed, chunked artifacts the checklist engine (§3.4) actually queries at review time — the TDS Committee never touches the indexed output directly, only these source files.
+Defines the plain-text format TDS Committee members author checklist items in. One file per item, committed to `checklist/<domain>/<ID>.md`. The coding assistant's generation pipeline (see `docs/CORPUS_BUILD_PIPELINE.md`) parses these into the indexed, chunked artifacts the checklist engine (§3.4) actually queries at review time — the TDS Committee never touches the indexed output directly, only these source files.
 
 ## File location
 
