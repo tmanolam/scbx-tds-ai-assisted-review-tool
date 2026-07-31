@@ -47,7 +47,7 @@ satisfies:
 
 ## Body sections (Markdown, in this order)
 
-```markdown
+````markdown
 ## Pattern Description
 
 Plain-language description of the architecture pattern and when it fits —
@@ -58,10 +58,10 @@ matching engine uses this alongside the frontmatter for retrieval).
 
 Reference to `diagram.mmd` (Mermaid) rendered inline, or embed directly:
 
-​```mermaid
+```mermaid
 flowchart LR
     ...
-​```
+```
 
 ## What's Pre-Approved
 
@@ -79,7 +79,7 @@ conventions, project-specific IAM role assignments, scaling parameters, etc.
 ## Notes (optional)
 
 Known limitations, common customization pitfalls, or links to related templates.
-```
+````
 
 ## Editing rules
 
