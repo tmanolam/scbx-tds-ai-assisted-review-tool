@@ -1,6 +1,6 @@
-# Repo Structure, Kiro Implementation Plan & Corpus Build Pipeline
+# Repo Structure, Coding Assistant Implementation Plan & Corpus Build Pipeline
 
-How this tool gets built in a single repo using Kiro, and how plain-text checklist/template authoring turns into the indexed artifacts the running system queries. Companion to `TDS_AI_Requirements.md` and `TDS_AI_Architecture.md`.
+How this tool gets built in a single repo using an AI coding assistant, and how plain-text checklist/template authoring turns into the indexed artifacts the running system queries. Companion to `TDS_AI_Requirements.md` and `TDS_AI_Architecture.md`.
 
 ---
 
@@ -43,7 +43,7 @@ How this tool gets built in a single repo using Kiro, and how plain-text checkli
   audit-log/
 
 /scripts/
-  build-corpus.*                # the parse/validate/chunk/diff script Kiro implements (§3 below)
+  build-corpus.*                # the parse/validate/chunk/diff script the coding assistant implements (§3 below)
 
 /.github/
   workflows/
@@ -56,13 +56,13 @@ CODEOWNERS.example:
   /templates/  @tds-committee-team
 ```
 
-One repo holds the specs, the source content, and the implementation — Kiro operates across all of it with full context of the requirements and architecture docs already in `/docs`.
+One repo holds the specs, the source content, and the implementation — the coding assistant operates across all of it with full context of the requirements and architecture docs already in `/docs`.
 
 ---
 
-## 2. What Kiro should build, in order
+## 2. What the coding assistant should build, in order
 
-This maps directly to the architecture doc's roadmap (§9), scoped to what a single-repo, Kiro-driven build changes about *how* each stage gets implemented.
+This maps directly to the architecture doc's roadmap (§9), scoped to what a single-repo, coding-assistant-driven build changes about *how* each stage gets implemented.
 
 1. **`scripts/build-corpus`** — the corpus build pipeline (detailed below). Build this first, even before the full application, because it's what turns your plain-text checklist/template authoring into something usable, and because it validates FR-40/41/42/46 cheaply and early.
 2. **`.github/workflows/build-corpus.yml` + `CODEOWNERS`** — wires the pipeline into CI and enforces authorization. This is Stage 5b (corpus maintenance readiness) from the architecture roadmap, but there's no reason not to do it in week one — it's cheap and it validates the format specs against real content immediately.
@@ -73,7 +73,7 @@ This maps directly to the architecture doc's roadmap (§9), scoped to what a sin
 
 ---
 
-## 3. The corpus build pipeline (what Kiro generates from your plain text)
+## 3. The corpus build pipeline (what the coding assistant generates from your plain text)
 
 Triggered by CI on any push touching `checklist/**` or `templates/**` (or run locally via the script directly).
 
@@ -88,7 +88,7 @@ Triggered by CI on any push touching `checklist/**` or `templates/**` (or run lo
 
 **Why this satisfies the requirements cheaply:**
 
-| Requirement | How the single-repo + Kiro approach satisfies it |
+| Requirement | How the single-repo + coding-assistant approach satisfies it |
 |---|---|
 | FR-40 (authorized edits only) | `CODEOWNERS` + branch protection on `checklist/**`, `templates/**` |
 | FR-41 (audit trail) | Git commit history — author, diff, timestamp, message — is the audit trail |
@@ -103,7 +103,7 @@ Triggered by CI on any push touching `checklist/**` or `templates/**` (or run lo
 
 1. **Confirm the format specs** (`CHECKLIST_ITEM_FORMAT.md`, `TEMPLATE_FORMAT.md`) — adjust any fields before content gets authored against them, since changing the schema later means migrating existing files.
 2. **Author one pilot checklist item and one pilot template** by hand, in the new format, to sanity-check the format is actually usable before generating many.
-3. **Have Kiro build `scripts/build-corpus`** against those two pilot files — smallest possible slice that proves the parse → validate → chunk → diff → flag loop works end to end.
+3. **Have the coding assistant build `scripts/build-corpus`** against those two pilot files — smallest possible slice that proves the parse → validate → chunk → diff → flag loop works end to end.
 4. **Wire up CI + CODEOWNERS** once the script works locally.
-5. **TDS Committee starts authoring real checklist content** (Stage 1 of the architecture roadmap) against the now-validated format, in parallel with Kiro building `/src/ingestion` and `/src/parsing` (Stage 2).
+5. **TDS Committee starts authoring real checklist content** (Stage 1 of the architecture roadmap) against the now-validated format, in parallel with the coding assistant building `/src/ingestion` and `/src/parsing` (Stage 2).
 6. Everything else follows the roadmap in `TDS_AI_Architecture.md` §9, now with an implementation substrate in place.
