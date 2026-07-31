@@ -56,6 +56,22 @@ flowchart TD
 
 **Reading the diagram:** the PortCo interacts only with the ingestion step and the self-serve feedback loop; everything else is internal. The routing decision (G) is the only branch point in the review flow, and it now includes a third condition — a project already being handled through a PortCo's own forum should route there rather than generate a duplicate TDS session. The design-assist flow (N–U, lower half) is a separate, earlier-stage entry point: a PortCo with only a requirement, not yet a design, gets matched to a reference template and then feeds back into the same review flow (T→A) once they've customized it — template selection is a starting point, not a bypass of review.
 
+**Corpus maintenance (post-launch, not shown above to keep the main diagram readable):**
+
+```mermaid
+flowchart LR
+    V["Authorized TDS\nCommittee member"] --> W["Edit checklist item\nor template"]
+    W --> L
+    W --> M
+    W --> X["Auto re-index"]
+    X --> L2[("Retrieval store\n(§5, §7)")]
+    W --> Y{"Checklist item\nchanged?"}
+    Y -->|"yes"| Z["Flag affected templates\nfor re-validation"]
+    Z --> I["TDS Committee\nreview queue"]
+```
+
+This sits alongside, not inside, the main pipeline: an edit writes to the corpus (L), logs to the audit store (M, same store as §3.9), triggers automated re-indexing, and — if the edit was to a checklist item — flags any template validated against it for TDS Committee re-validation. In-flight reviews and already-issued artifacts are untouched by this flow; they keep referencing the version they were evaluated against.
+
 ---
 
 ## 3. Components
@@ -124,6 +140,17 @@ A second, earlier-stage pipeline that runs before a design exists, rather than r
 - **Low-confidence handling**: when no template is a reasonable match, the engine does not force-fit one — it routes to the TDS Committee review queue (§3.6, §3.7) as a "help design a starting point" case.
 - **Handback into review**: once a PortCo customizes a selected template into an actual design, that design re-enters the pipeline at ingestion (§3.1) and goes through the full checklist review (§3.2–§3.9) like any other submission — template selection accelerates the starting point, it does not shortcut compliance checking, since customization can introduce gaps even into a compliant template.
 - **Explicit non-scope**: this component never generates a new architecture, and never produces IaC. If a PortCo needs deployable infrastructure code once a design is settled, they are pointed to the separate IaC module team/catalog — a clean boundary rather than an integration this tool owns.
+
+### 3.11 Corpus Maintenance & Re-indexing
+
+Handles how the checklist (§3.3) and template library (§3.10) get edited after launch — deliberately minimal, since the design goal is no separate maintenance tool, just authorized edits with an audit trail and automated re-indexing.
+
+- **Authorized edit access**: only authorized TDS Committee members can edit the checklist or template corpus. Edits happen directly on the existing versioned documents (the same source used to build the retrieval store) — there is no separate CMS or admin UI to build or operate.
+- **Audit logging**: every edit (who, what changed, when, version before/after) is written to the audit log store (§3.9) alongside the rest of the system's audit trail — reusing the same store rather than a second logging mechanism.
+- **Automated re-indexing**: an edit to the checklist or template corpus automatically triggers re-indexing into the retrieval store (§7) — no manual "please re-index" step. This is a straightforward trigger (edit event → re-index job), not a complex pipeline, since the retrieval store already re-indexes incrementally by chunk (§7).
+- **In-flight version pinning**: a review already in progress continues against the checklist/template version it started with (already tracked per §3.9/FR-27); the corpus update does not reach into an active checklist engine (§3.4) or template matching engine (§3.10) run and change what it's evaluating against mid-flight.
+- **Immutable finding history**: completed output artifacts (§3.8) are never rewritten when the corpus changes later — the recorded version reference is what makes old findings meaningful without needing to touch them.
+- **Template re-validation flagging**: when a checklist item changes, the system cross-references which templates were validated against that item (using the same versioned linkage already used for audit logging) and flags them in the TDS Committee's view as needing re-validation. This is a flag, not an automated re-validation — the actual judgment of whether the template is still compliant stays with the TDS Committee.
 
 ---
 
@@ -260,7 +287,8 @@ The TDS Committee's own phased rollout (Align & Scope → Build → Pilot → La
 | **Stage 4a — Template authoring & internal pilot (design-assist)** | TDS Committee authors (or co-develops with the AI tool team drafting candidates for TDS Committee review and sign-off) an initial template set — enough for reasonable coverage of common patterns, not full breadth. Build requirement extraction and template matching engine; pilot internally against anonymized past requirements. | Depends on Stage 1a for the initial template set, and reuses tooling from Stage 2 (retrieval infrastructure) where possible. Can run in parallel with Stage 4. |
 | **Stage 5 — PortCo pilot** | Run with a small set of volunteer PortCos, ideally including at least one project already going through a PortCo-owned forum (AWG/ARC/DAC/Infra Day) to validate the "avoid duplicate review" path. | Depends on Stage 4. |
 | **Stage 5a — PortCo pilot (design-assist)** | Run the template matching flow with a small set of volunteer PortCos starting new projects; validate that matched templates lead to fewer gaps at review time (per the success metric in requirements doc §7), and that the "no good match" escalation path works in practice. | Depends on Stage 4a, and ideally overlaps with Stage 5 so a pilot PortCo can be observed going template → customize → review end to end. |
-| **Stage 6 — Rollout** | Make available alongside the TDS Committee's own engagement channels (CWG announcement, mail group, per-PortCo chats). | Depends on Stage 5 (and Stage 5a if design-assist launches together with review), and on the TDS Committee's own launch/announce work having already established those channels. |
+| **Stage 5b — Corpus maintenance readiness** | Confirm authorized edit access, audit logging (reusing §3.9), and automated re-indexing (§3.11) are working before real PortCos are relying on the tool — a launched tool needs to handle checklist/template updates from day one, not as a later add-on. | Depends on Stage 2 (retrieval infrastructure) and Stage 3 (audit log store); should complete before Stage 6, since rollout implies ongoing content changes will happen. |
+| **Stage 6 — Rollout** | Make available alongside the TDS Committee's own engagement channels (CWG announcement, mail group, per-PortCo chats). | Depends on Stage 5 (and Stage 5a if design-assist launches together with review), Stage 5b, and on the TDS Committee's own launch/announce work having already established those channels. |
 | **Stage 7 — Multi-cloud extension** | Extend checklist coverage and diagram parsing to AWS and GCP as those CSPs are Group-approved. Extend the template library with AWS/GCP-native patterns on the same timeline. | Depends on the Group's multi-cloud approval timeline, not on this tool's own progress. |
 
 This roadmap is intentionally decoupled from the TDS Committee's phase numbering to avoid implying the two were planned together — they weren't. If the TDS Committee later decides to formally fold this tool into its own roadmap, Stage 1 onward would most naturally slot in around or after the Committee's own "Build" phase, since both depend on the same checklist being ready. Design-assist (the "a" stages) can be treated as an optional parallel track that a pilot can proceed without, if template authoring capacity is the constraint — the review flow alone still delivers the tool's primary value.
@@ -284,6 +312,8 @@ This roadmap is intentionally decoupled from the TDS Committee's phase numbering
 | Template library goes stale relative to the checklist it was built against | Version templates against the checklist version they were validated on (like §3.9 audit logging tracks); flag templates for re-validation when the checklist they depend on changes. |
 | Template authoring becomes a bigger burden than the TDS Committee's capacity can sustain (Migration Enablement alone brings 4 staff, +2 shared) | Start with a small, high-value initial set (Stage 1a/4a) rather than broad coverage; treat "co-develop with the AI tool team" as drafting assistance for TDS Committee review, not delegated authorship. |
 | Scope creep from template matching into actual design generation | Hold the line in requirements (§4.10 non-goals) and architecture (principle 8): AI selects from a pre-approved library, it does not author new patterns or IaC — enforced by keeping the matching engine retrieval-only, with no generative "create a new template on the fly" path. |
+| A checklist/template edit reaches an in-flight review or an already-issued artifact, undermining trust in the tool's outputs | Enforce version pinning at the point a review starts (§3.11); every artifact carries its evaluated-against version (FR-27, FR-44) and is never rewritten (FR-45) — this is a design invariant, not a best-effort behavior. |
+| Flagged templates (post checklist-change) pile up unresolved because re-validation isn't anyone's clear job | Surface flagged templates in the same TDS Committee review queue (§3.7) used for escalated cases, rather than a separate, easy-to-ignore list; revisit whether an SLA is needed once real volume is observed (open question, requirements doc §9). |
 
 ---
 
@@ -298,3 +328,4 @@ This roadmap is intentionally decoupled from the TDS Committee's phase numbering
 7. How many reference design templates are needed for a credible initial pilot (Stage 1a/4a), and who on the TDS Committee prioritizes which patterns get authored first?
 8. What does "co-develop templates with the AI tool team" mean operationally — does the AI tool team draft candidate templates for TDS Committee sign-off, provide tooling/structure only, or something in between?
 9. Should design-assist (Stage 1a/4a/5a) launch together with the review tool, or as a later, optional phase if template authoring capacity is constrained?
+10. Which TDS Committee roles are authorized to edit the checklist/template corpus (§3.11), and does that authorization differ by content type (checklist vs. template) or by CSP domain?
