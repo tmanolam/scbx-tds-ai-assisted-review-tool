@@ -15,6 +15,7 @@
 5. **Built for a small, joint team.** The TDS Committee is 4 staff (+2 shared) drawn from four groups (CCoE ME, EA, Cyber, Data) — the architecture should minimize what needs a human, and make the parts that do need one as fast as possible.
 6. **Complements PortCo forums, doesn't replace them.** Where a PortCo already has AWG, ARC, DAC, Infra Day, etc., the tool should support "reviewed via their forum" rather than forcing a duplicate TDS pass.
 7. **Sensitive input, careful handling.** Architecture diagrams can reveal security posture — this shapes the hosting and data-retention choices below.
+8. **AI selects, it does not design.** Where the tool assists a PortCo before a design exists (§3.10), it matches requirements to a pre-approved reference template library — the same "source of truth lives outside the model" discipline as the checklist (principle 1), applied to design patterns instead of policy. The AI is never the architect of record, and never produces deployable infrastructure-as-code (IaC); that remains a separate team's responsibility.
 
 ---
 
@@ -39,9 +40,21 @@ flowchart TD
     F --> M
     G --> M
     J --> M
+
+    N["PortCo requirement\nplain-language description"] --> O["Requirement extraction"]
+    O --> P["Structured requirement model"]
+    P --> Q["Template matching engine\nRAG over template library"]
+    Q --> R{"Match confidence"}
+    R -->|"good match"| S["Template recommendation\n+ rationale, 2-3 candidates"]
+    R -->|"no reasonable match"| I
+    S --> T["PortCo customizes template"]
+    T --> A
+    Q -. reads .- U[("Reference design\ntemplate library (versioned)")]
+    O --> M
+    Q --> M
 ```
 
-**Reading the diagram:** the PortCo interacts only with the ingestion step and the self-serve feedback loop; everything else is internal. The routing decision (G) is the only branch point, and it now includes a third condition — a project already being handled through a PortCo's own forum should route there rather than generate a duplicate TDS session.
+**Reading the diagram:** the PortCo interacts only with the ingestion step and the self-serve feedback loop; everything else is internal. The routing decision (G) is the only branch point in the review flow, and it now includes a third condition — a project already being handled through a PortCo's own forum should route there rather than generate a duplicate TDS session. The design-assist flow (N–U, lower half) is a separate, earlier-stage entry point: a PortCo with only a requirement, not yet a design, gets matched to a reference template and then feeds back into the same review flow (T→A) once they've customized it — template selection is a starting point, not a bypass of review.
 
 ---
 
@@ -49,7 +62,7 @@ flowchart TD
 
 ### 3.1 Ingestion Service
 - Accepts diagrams (image/PDF/draw.io/Visio export) and documents (Word/PDF/markdown).
-- Captures submission metadata: PortCo, project, target CSP(s), submitter, and — if applicable — which PortCo-owned forum (AWG, ARC, DAC, Infra Day, etc.) the project is also going through.
+- Captures submission metadata: PortCo, project, target CSP(s), submitter, and — if applicable — which PortCo-owned forum (AWG, ARC, DAC, Infra Day, etc.) the project is also going through, and whether the submission originated from a reference design template (§3.10).
 - Assigns a submission ID and stores the raw artifact in object storage.
 - Supports early "register a project" intake at kick-off, addressing today's gap where new projects aren't visible to TDS until CADRB registration.
 
@@ -84,6 +97,7 @@ flowchart TD
 - Configurable rule layer (not model logic) that decides: self-serve return vs. TDS Committee escalation vs. "already covered by PortCo forum."
 - Risk factors are defined jointly by the TDS Committee (e.g. cross-border data, novel pattern, security-critical gap, low extraction/finding confidence).
 - Kept as explicit, editable rules/config — not baked into a prompt — so policy changes don't require a model change.
+- Also receives low-confidence outcomes from the template matching engine (§3.10) — a requirement with no reasonable template match routes here too, as a "help design a starting point" case rather than a compliance escalation.
 
 ### 3.7 TDS Committee Review Workflow
 - Queue visible to whichever TDS Committee members are relevant to the escalation (CCoE Migration Enablement, EA, Cyber, or Data) — this is a shared queue across a joint committee, not a single team's inbox.
@@ -93,10 +107,23 @@ flowchart TD
 ### 3.8 Output Artifact Generator
 - Compiles the agreed minimum viable artifact: **Findings, Conditions, and Sign-off** (email sign-off at minimum; exact sign-off authority still open — see requirements doc §9).
 - Produces a document (and/or structured data) consumable by CADRB, aimed at letting CADRB's short session focus on decisions rather than discovery.
+- Records which template (and template version), if any, the submission originated from (§3.10), alongside the checklist version already tracked.
 
 ### 3.9 Audit Log Store
 - Immutable record of every submission, AI output, routing decision, and human decision, with the checklist version and target CSP(s) recorded.
-- Answers, after the fact: did this solution go through TDS (or an equivalent PortCo forum), and what happened?
+- Also records template matching activity: which requirement was submitted, which templates were offered, and which (if any) was selected.
+- Answers, after the fact: did this solution go through TDS (or an equivalent PortCo forum), and what happened — and, for design-assist, did it start from a template, and which one?
+
+### 3.10 Requirement Extraction & Template Matching (Design-Assist)
+
+A second, earlier-stage pipeline that runs before a design exists, rather than reviewing one already produced. Structurally it mirrors the checklist engine (§3.4) — retrieval against a versioned, TDS Committee-owned corpus — applied to a different corpus and a different kind of input.
+
+- **Requirement extraction**: parses a PortCo's plain-language requirement description into a structured requirement model (data sensitivity/classification, cross-border flags, expected scale, integration needs, target CSP). This is a lighter-weight extraction task than diagram parsing in §3.2 — text in, structured attributes out — but uses the same "flag low confidence rather than guess" discipline.
+- **Reference design template library**: a versioned corpus of TDS Committee-approved reference architecture patterns — diagrams/patterns only, explicitly **not** deployable IaC. Each template is pre-checked against all checklist domains (§3.3) at authoring time, so a template starts "compliant by construction." Indexed into the same class of retrieval store as the checklist corpus (see §5, §7).
+- **Template matching engine**: retrieves and ranks templates against the structured requirement model, typically returning 2–3 candidates with a plain-language rationale, rather than a single silent pick. Each candidate states which checklist domains it satisfies out of the box and which decisions remain the PortCo's own (SKU sizing, naming, project-specific IAM roles, etc.).
+- **Low-confidence handling**: when no template is a reasonable match, the engine does not force-fit one — it routes to the TDS Committee review queue (§3.6, §3.7) as a "help design a starting point" case.
+- **Handback into review**: once a PortCo customizes a selected template into an actual design, that design re-enters the pipeline at ingestion (§3.1) and goes through the full checklist review (§3.2–§3.9) like any other submission — template selection accelerates the starting point, it does not shortcut compliance checking, since customization can introduce gaps even into a compliant template.
+- **Explicit non-scope**: this component never generates a new architecture, and never produces IaC. If a PortCo needs deployable infrastructure code once a design is settled, they are pointed to the separate IaC module team/catalog — a clean boundary rather than an integration this tool owns.
 
 ---
 
@@ -132,6 +159,28 @@ sequenceDiagram
     O->>C: Findings / Conditions / Sign-off artifact
 ```
 
+**Design-assist flow (precedes the above, optional entry point):**
+
+```mermaid
+sequenceDiagram
+    participant P as PortCo
+    participant RE as Requirement Extraction
+    participant TM as Template Matching (RAG)
+    participant T as TDS Committee
+    participant I as Ingestion
+
+    P->>RE: Describe requirement (plain language)
+    RE->>TM: Structured requirement model
+    alt good match
+        TM->>P: 2-3 candidate templates + rationale
+        P->>P: Customize chosen template into a design
+        P->>I: Submit customized design (enters review flow above)
+    else no reasonable match
+        TM->>T: Escalate — help design a starting point
+        T->>P: Bespoke starting guidance
+    end
+```
+
 ---
 
 ## 5. CSP Options (where to host the tool)
@@ -164,6 +213,7 @@ The tool must review designs across Azure, AWS, and GCP as the Group's multi-clo
 - **Multimodal quality**: the diagram-parsing step is the accuracy bottleneck for the whole pipeline — worth piloting 2–3 models on a sample of real PortCo diagrams before committing.
 - **Structured output support**: the model must reliably return structured findings (JSON-like schema) for the checklist engine to consume, not free-form prose.
 - **Grounded citation behavior**: the model needs to reliably cite the retrieved standard clause rather than paraphrasing from memory — this should be part of the pilot evaluation, not assumed.
+- **Requirement-text understanding** (for design-assist, §3.10): the same model(s) should be evaluated on parsing short, informal PortCo requirement descriptions into structured attributes — a text-only task, but the matching quality of the whole design-assist flow depends on getting this extraction right.
 
 **Suggested approach:** pilot with the model that pairs naturally with the currently-approved CSP (Azure OpenAI), but build the integration behind a model-abstraction layer so a second model — and eventually AWS/GCP-native options — can be evaluated without reworking the pipeline.
 
@@ -180,11 +230,13 @@ The tool must review designs across Azure, AWS, and GCP as the Group's multi-clo
 
 The checklist and Group standards corpus should be **chunked and versioned deliberately** (not just dumped in as raw PDFs), so a standard update only requires re-indexing the affected chunks, and every finding can cite a specific, stable clause reference. Adding AWS/GCP-specific guidance later should be additive to this corpus, not a rebuild.
 
+The reference design template library (§3.10) should use the same retrieval store and the same chunking/versioning discipline. Each template is indexed with structured metadata (target CSP, data sensitivity level supported, integration patterns covered, checklist domains satisfied) so matching can combine metadata filtering with semantic search rather than relying on free-text similarity alone — this matters more here than for the checklist, since requirement descriptions are shorter and more variable than a structured design model.
+
 ---
 
 ## 8. Deployment & Security Considerations
 
-- **Data sensitivity**: architecture diagrams can reveal security posture (network topology, IAM structure). Use private/enterprise-tier endpoints only — no public/shared consumer AI endpoints, no data used for vendor model training.
+- **Data sensitivity**: architecture diagrams can reveal security posture (network topology, IAM structure). Use private/enterprise-tier endpoints only — no public/shared consumer AI endpoints, no data used for vendor model training. Plain-language requirement descriptions (§3.10) should be treated with the same care, since they may still reference sensitive integrations or data types even without a diagram.
 - **Data residency**: store submissions, extracted models, and logs within the region/tenant required by Group data policy.
 - **Access control**: role-based access — PortCo submitters see only their own submissions; TDS Committee members (across CCoE ME, EA, Cyber, Data) see the review queue and audit logs relevant to their domain.
 - **Network isolation**: ingestion and storage should sit inside the Group's private network (VNet/VPC), with the AI model call made via private endpoint/peering where the chosen vendor supports it.
@@ -195,20 +247,23 @@ The checklist and Group standards corpus should be **chunked and versioned delib
 
 ## 9. Proposed Implementation Roadmap (for this AI tool specifically)
 
-The TDS Committee's own phased rollout (Align & Scope → Build → Pilot → Launch → multi-cloud extension) was drafted before this AI-assisted tool idea existed as a real proposal — it only notes "develop tools that help PortCos enable TDS easily" as a discussion point, not a planned workstream. Rather than force-fit this tool into that roadmap and risk confusing the two, here is a standalone roadmap for the AI tool itself, on the assumption it moves forward as its own initiative:
+The TDS Committee's own phased rollout (Align & Scope → Build → Pilot → Launch → multi-cloud extension) was drafted before this AI-assisted tool idea existed as a real proposal — it only notes "develop tools that help PortCos enable TDS easily" as a discussion point, not a planned workstream. Rather than force-fit this tool into that roadmap and risk confusing the two, here is a standalone roadmap for the AI tool itself, on the assumption it moves forward as its own initiative. The review flow (Stages 0–6) and the design-assist flow (Stage 1a, 4a, 5a) are sequenced separately below, since design-assist has its own content dependency (the template library) distinct from — and larger than — the checklist.
 
 | Stage | Focus | Dependency |
 |---|---|---|
 | **Stage 0 — Decision & scoping** | TDS Committee decides whether to pursue this tool at all; confirms hosting CSP and AI model direction (§5–§6); confirms data-handling terms with Cyber. | None — this can start any time. |
 | **Stage 1 — Checklist readiness** | Confirm the TDS checklist (domains in §3.3) exists in a structured, versioned form suitable for RAG — not just prose documents. | Depends on the TDS Committee's own checklist-authoring work; this tool cannot meaningfully start before the checklist is at least in a stable draft. |
+| **Stage 1a — Template library scoping (design-assist)** | TDS Committee, co-developing with the AI tool team on structure/tooling, defines the initial set of reference design templates to author (which patterns, what metadata schema, what "compliant by construction" means per template) and prioritizes which patterns are authored first. | Depends on Stage 1 — templates are checked against the same checklist domains, so the checklist needs to be stable-draft first. Can run in parallel with Stage 2. |
 | **Stage 2 — Core pipeline build** | Build ingestion, parsing/extraction, checklist engine (RAG), and recommendation generator against Azure patterns first. | Depends on Stage 1. |
 | **Stage 3 — Routing & review workflow** | Implement confidence/risk routing rules with TDS Committee input; build the review queue and sign-off flow. | Depends on Stage 2 and on sign-off authority being resolved (open item in requirements doc §9). |
 | **Stage 4 — Internal pilot** | Run the tool against a small set of real (anonymized) past or in-flight submissions, without PortCos in the loop yet, to validate extraction and recommendation accuracy. | Depends on Stage 3. |
+| **Stage 4a — Template authoring & internal pilot (design-assist)** | TDS Committee authors (or co-develops with the AI tool team drafting candidates for TDS Committee review and sign-off) an initial template set — enough for reasonable coverage of common patterns, not full breadth. Build requirement extraction and template matching engine; pilot internally against anonymized past requirements. | Depends on Stage 1a for the initial template set, and reuses tooling from Stage 2 (retrieval infrastructure) where possible. Can run in parallel with Stage 4. |
 | **Stage 5 — PortCo pilot** | Run with a small set of volunteer PortCos, ideally including at least one project already going through a PortCo-owned forum (AWG/ARC/DAC/Infra Day) to validate the "avoid duplicate review" path. | Depends on Stage 4. |
-| **Stage 6 — Rollout** | Make available alongside the TDS Committee's own engagement channels (CWG announcement, mail group, per-PortCo chats). | Depends on Stage 5, and on the TDS Committee's own launch/announce work having already established those channels. |
-| **Stage 7 — Multi-cloud extension** | Extend checklist coverage and diagram parsing to AWS and GCP as those CSPs are Group-approved. | Depends on the Group's multi-cloud approval timeline, not on this tool's own progress. |
+| **Stage 5a — PortCo pilot (design-assist)** | Run the template matching flow with a small set of volunteer PortCos starting new projects; validate that matched templates lead to fewer gaps at review time (per the success metric in requirements doc §7), and that the "no good match" escalation path works in practice. | Depends on Stage 4a, and ideally overlaps with Stage 5 so a pilot PortCo can be observed going template → customize → review end to end. |
+| **Stage 6 — Rollout** | Make available alongside the TDS Committee's own engagement channels (CWG announcement, mail group, per-PortCo chats). | Depends on Stage 5 (and Stage 5a if design-assist launches together with review), and on the TDS Committee's own launch/announce work having already established those channels. |
+| **Stage 7 — Multi-cloud extension** | Extend checklist coverage and diagram parsing to AWS and GCP as those CSPs are Group-approved. Extend the template library with AWS/GCP-native patterns on the same timeline. | Depends on the Group's multi-cloud approval timeline, not on this tool's own progress. |
 
-This roadmap is intentionally decoupled from the TDS Committee's phase numbering to avoid implying the two were planned together — they weren't. If the TDS Committee later decides to formally fold this tool into its own roadmap, Stage 1 onward would most naturally slot in around or after the Committee's own "Build" phase, since both depend on the same checklist being ready.
+This roadmap is intentionally decoupled from the TDS Committee's phase numbering to avoid implying the two were planned together — they weren't. If the TDS Committee later decides to formally fold this tool into its own roadmap, Stage 1 onward would most naturally slot in around or after the Committee's own "Build" phase, since both depend on the same checklist being ready. Design-assist (the "a" stages) can be treated as an optional parallel track that a pilot can proceed without, if template authoring capacity is the constraint — the review flow alone still delivers the tool's primary value.
 
 ---
 
@@ -225,6 +280,10 @@ This roadmap is intentionally decoupled from the TDS Committee's phase numbering
 | Small, joint team (4 staff, +2 shared) can't sustain review queue even with AI | Keep routing thresholds conservative at first (favor escalation over auto-clear) and tighten only as confidence in AI accuracy grows from real pilot data. |
 | Tool duplicates a PortCo's own forum review | Support forum-tagging on submissions (§3.1, §4.9 in requirements) so a project already reviewed via AWG/ARC/DAC/Infra Day isn't re-run through TDS from scratch. |
 | Vendor/CSP lock-in | Keep model calls and retrieval behind an abstraction layer from day one, even if Phase 1–3 targets Azure only for speed. |
+| PortCo treats a matched template as a finished, approved design and skips customization/review | Every template recommendation must explicitly list what's pre-approved vs. still the PortCo's decision (§3.10, requirements FR-35); customized designs still route through full checklist review (§3.2–§3.9) with no shortcut. |
+| Template library goes stale relative to the checklist it was built against | Version templates against the checklist version they were validated on (like §3.9 audit logging tracks); flag templates for re-validation when the checklist they depend on changes. |
+| Template authoring becomes a bigger burden than the 4-person team can sustain | Start with a small, high-value initial set (Stage 1a/4a) rather than broad coverage; treat "co-develop with the AI tool team" as drafting assistance for TDS Committee review, not delegated authorship. |
+| Scope creep from template matching into actual design generation | Hold the line in requirements (§4.10 non-goals) and architecture (principle 8): AI selects from a pre-approved library, it does not author new patterns or IaC — enforced by keeping the matching engine retrieval-only, with no generative "create a new template on the fly" path. |
 
 ---
 
@@ -235,4 +294,7 @@ This roadmap is intentionally decoupled from the TDS Committee's phase numbering
 3. Confirm data-handling/retention terms with Cyber for whichever vendor is chosen.
 4. Confirm sign-off authority for the output artifact (open item from requirements doc §9).
 5. Sequencing: does the TDS Committee want this tool built as a standalone initiative (per the Stage 0–7 roadmap in §9), or formally folded into its own phased rollout — and if the latter, at what point does checklist authoring need to be "stable enough" to start Stage 2?
-6. Relationship between this AI tool and the separate "reference architecture" workstream mentioned in Phase 4 — same team, same tool, or parallel efforts?
+6. Relationship between this AI tool and the separate "reference architecture" workstream mentioned in Phase 4 — this is now addressed by the design-assist template library (§3.10); confirm this supersedes rather than duplicates that workstream.
+7. How many reference design templates are needed for a credible initial pilot (Stage 1a/4a), and who on the TDS Committee prioritizes which patterns get authored first?
+8. What does "co-develop templates with the AI tool team" mean operationally — does the AI tool team draft candidate templates for TDS Committee sign-off, provide tooling/structure only, or something in between?
+9. Should design-assist (Stage 1a/4a/5a) launch together with the review tool, or as a later, optional phase if template authoring capacity is constrained?
