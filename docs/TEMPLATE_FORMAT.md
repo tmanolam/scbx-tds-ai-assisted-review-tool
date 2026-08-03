@@ -26,6 +26,8 @@ title: "Azure web app handling customer PII"   # required
 target_csp: azure                       # required: azure | aws | gcp
 data_sensitivity: [pii, confidential]   # required, one or more: public, internal, confidential, pii, restricted
 integration_patterns: [on-prem-vpn, rest-api]  # required, free-form tags describing integration shape
+business_context: financial             # required: financial | non-financial | both — drives regulatory/data-residency strictness and audit depth in matching
+pci_scope: out-of-scope                 # required: cde | cde-adjacent | out-of-scope — drives network segmentation and encryption requirements; the matching engine filters on this BEFORE semantic matching (a PCI requirement must never match an out-of-scope template)
 status: active                          # required: active | needs-revalidation | retired
 version: 1                              # required, integer
 checklist_version_validated_against: 1  # required — the checklist version (see docs/CORPUS_BUILD_PIPELINE.md) this template was last validated against; the build pipeline uses this to detect drift for FR-46
@@ -82,6 +84,8 @@ Known limitations, common customization pitfalls, or links to related templates.
 ````
 
 ## Editing rules
+
+(For *which* templates to author and in what order, see `docs/TEMPLATE_LIBRARY_PLAN.md`.)
 
 - **New template**: new folder + new unique ID. Must declare `checklist_version_validated_against` matching the checklist version at authoring time — the TDS Committee is expected to have checked it against the current checklist domains listed in `satisfies` before committing.
 - **Modify template**: edit in place, bump `version`. If the change doesn't touch `satisfies` or the underlying pattern's compliance posture, `checklist_version_validated_against` can stay as-is.
