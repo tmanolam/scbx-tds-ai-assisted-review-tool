@@ -26,7 +26,7 @@ title: "Azure web app handling customer PII"   # required
 target_csp: azure                       # required: azure | aws | gcp
 data_sensitivity: [pii, confidential]   # required, one or more: public, internal, confidential, pii, restricted
 integration_patterns: [on-prem-vpn, rest-api]  # required, free-form tags describing integration shape
-business_context: financial             # required: financial | non-financial | both — drives regulatory/data-residency strictness and audit depth in matching
+regulatory_scope: financial             # required: financial | none — whether THIS WORKLOAD carries financial-regulatory obligations (BOT/SEC/AMLO-style audit depth, data residency, transaction logging), independent of which PortCo builds it and independent of data_sensitivity. Only set financial if the pattern's satisfies list or diagram actually differs because of it — don't use this field as a stand-in for "has PII" (that's data_sensitivity's job).
 pci_scope: out-of-scope                 # required: cde | cde-adjacent | out-of-scope — drives network segmentation and encryption requirements; the matching engine filters on this BEFORE semantic matching (a PCI requirement must never match an out-of-scope template)
 status: active                          # required: active | needs-revalidation | retired
 version: 1                              # required, integer
@@ -46,6 +46,8 @@ satisfies:
   # never a compliance item a template can "satisfy"
 ---
 ```
+
+**On `regulatory_scope` vs. `data_sensitivity`:** these are separate axes, not synonyms. `data_sensitivity` describes what kind of data flows through the pattern (PII, confidential, etc.) and typically does drive real architecture differences (encryption, access controls). `regulatory_scope` describes whether the workload itself is subject to financial-regulatory obligations *beyond* what its data sensitivity already implies. Before adding `regulatory_scope: financial` to a template — or splitting one template into two by this field — check whether it actually changes the `satisfies` list or the diagram. If the only thing that would change is which company happens to be building it, don't split; let the matching engine's residual-gap flow (FR-36) surface any extra checklist items a specific financial submission needs, rather than duplicating the whole template. See `docs/TEMPLATE_LIBRARY_PLAN.md` for how this plays out across the initial set.
 
 ## Body sections (Markdown, in this order)
 
